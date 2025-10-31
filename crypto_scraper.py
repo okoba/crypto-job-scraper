@@ -6,9 +6,14 @@ import os
 # CSV file to store jobs
 CSV_FILE = "remoteok_crypto_jobs.csv"
 
-# Telegram config
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-CHAT_ID = int(os.environ.get("CHAT_ID"))
+CHAT_ID = os.environ.get("CHAT_ID")
+
+if not TELEGRAM_TOKEN or not CHAT_ID:
+    print("Error: TELEGRAM_TOKEN and CHAT_ID environment variables must be set")
+    exit(1)
+
+CHAT_ID = int(CHAT_ID)
 
 def send_telegram_message(message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
