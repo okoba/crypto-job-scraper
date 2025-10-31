@@ -2,13 +2,12 @@ name: Crypto Job Scraper
 
 on:
   schedule:
-    - cron: "0 * * * *" 
-  workflow_dispatch:      
+    - cron: '0 * * * *'  # every hour
+  workflow_dispatch:      # allows manual trigger
 
 jobs:
-  run-scraper:
+  scraper:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -16,15 +15,19 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: 3.11
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install requests pandas
 
-      - name: Run crypto scraper
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: python crypto_scraper.py
+      - name: Run scraper
+        run: python scraper.py
+
+      - name: Commit and push CSV
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add remoteok_crypto_jobs.csv
+          git commit -m "Update jobs CSV" || echo "No changes"
+          git push
