@@ -68,6 +68,7 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
         if job_id in seen_ids:
             continue
         
+        # Check date (epoch timestamp in seconds)
         date_epoch = job.get("date")
         job_date = None
         date_str = "Unknown"
@@ -75,12 +76,20 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
         if date_epoch:
             try:
                 if isinstance(date_epoch, str):
-                    date_epoch = int(date_epoch)
-                job_date = datetime.fromtimestamp(date_epoch)
+                    try:
+                        job_date = datetime.fromisoformat(date_epoch.replace('Z', '+00:00'))
+                    except:
+                        date_epoch = int(date_epoch)
+                        job_date = datetime.fromtimestamp(date_epoch)
+                else:
+                    job_date = datetime.fromtimestamp(date_epoch)
+                
                 date_str = job_date.strftime("%Y-%m-%d")
                 
                 if job_date < cutoff_date:
                     continue
+                    
+                date_epoch = int(job_date.timestamp())
             except Exception as e:
                 print(f"Error parsing date for job {job_id}: {e}")
                 continue
