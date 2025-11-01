@@ -179,7 +179,7 @@ if __name__ == "__main__":
     # Only get jobs from the last 24 hours
     jobs = fetch_remoteok_jobs(
         tags=["crypto", "blockchain", "web3", "bitcoin", "ethereum", "defi", "solidity", "smart contract", "nft", "dao", "crypto engineer", "blockchain engineer"],
-        max_age_days=1
+        max_age_days=3  # Temporarily increase to 3 days for testing
     )
     
     if jobs:
