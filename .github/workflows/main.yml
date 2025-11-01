@@ -1,7 +1,7 @@
 name: Crypto Job Scraper
 on:
   schedule:
-    - cron: "0 */2 * * *"  # Every 6 hours instead of every hour
+    - cron: "0 */2 * * *"  
   workflow_dispatch:
 jobs:
   run-scraper:
