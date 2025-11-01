@@ -3,10 +3,8 @@ on:
   schedule:
     - cron: '0 * * * *'  
   workflow_dispatch:      
-
 permissions:
   contents: write
-
 jobs:
   scraper:
     runs-on: ubuntu-latest
@@ -25,6 +23,11 @@ jobs:
         run: |
           pip install -r requirements.txt
       
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
       - name: Run scraper
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -33,9 +36,11 @@ jobs:
       
       - name: Commit and push CSV
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
           git add remoteok_crypto_jobs.csv
-          git commit -m "Update jobs CSV" || echo "No changes"
-          git push
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update jobs CSV - $(date +'%Y-%m-%d %H:%M')"
+            git pull --rebase origin main || git pull origin main
+            git push
+          fi
