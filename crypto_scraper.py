@@ -30,8 +30,11 @@ def send_telegram_message(message: str):
     except Exception as e:
         print(f"Failed to send Telegram message: {e}")
 
-def fetch_remoteok_jobs(tag: str = "crypto") -> List[Dict]:
-    """Fetch jobs from RemoteOK API filtered by tag"""
+def fetch_remoteok_jobs(tags: List[str] = None) -> List[Dict]:
+    """Fetch jobs from RemoteOK API filtered by tags"""
+    if tags is None:
+        tags = ["crypto", "blockchain", "web3", "bitcoin", "ethereum", "defi"]
+    
     url = "https://remoteok.com/api"
     headers = {
         "User-Agent": "Mozilla/5.0",
@@ -53,19 +56,28 @@ def fetch_remoteok_jobs(tag: str = "crypto") -> List[Dict]:
         return []
     
     jobs = []
-    for job in jobs_data:
-        job_tags = job.get("tags", [])
-        if tag and not any(tag.lower() in t.lower() for t in job_tags):
-            continue
-        jobs.append({
-            "job_id": job.get("id"),
-            "title": job.get("position"),
-            "company": job.get("company", "Unknown"),
-            "location": job.get("location", "Remote"),
-            "link": f"https://remoteok.com/remote-jobs/{job.get('slug') or job.get('id')}"
-        })
+    seen_ids = set()
     
-    print(f"Total jobs matched tag '{tag}': {len(jobs)}")
+    for job in jobs_data:
+        job_id = job.get("id")
+        if job_id in seen_ids:
+            continue
+            
+        job_tags = job.get("tags", [])
+        job_tags_lower = [t.lower() for t in job_tags]
+        
+        # Check if any of our target tags are in the job tags
+        if any(tag.lower() in job_tags_lower for tag in tags):
+            seen_ids.add(job_id)
+            jobs.append({
+                "job_id": job_id,
+                "title": job.get("position"),
+                "company": job.get("company", "Unknown"),
+                "location": job.get("location", "Remote"),
+                "link": f"https://remoteok.com/remote-jobs/{job.get('slug') or job_id}"
+            })
+    
+    print(f"Total jobs matched tags {tags}: {len(jobs)}")
     return jobs
 
 def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
@@ -103,11 +115,14 @@ def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
 if __name__ == "__main__":
     print("Starting crypto job scraper...")
     
-    jobs = fetch_remoteok_jobs(tag="crypto")
+    # Fetch jobs from RemoteOK with multiple related tags
+    jobs = fetch_remoteok_jobs(tags=["crypto", "blockchain", "web3", "bitcoin", "ethereum", "defi"])
     
     if jobs:
+        # Save jobs and get only new ones
         new_jobs = save_jobs(jobs)
         
+        # Send Telegram notifications for new jobs only
         if new_jobs:
             print(f"Sending {len(new_jobs)} Telegram notifications...")
             for job in new_jobs:
