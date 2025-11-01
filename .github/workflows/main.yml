@@ -20,9 +20,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install requests pandas
-
       - name: Run scraper
-        run: python scraper.py
+         run: python crypto_scraper.py
 
       - name: Commit and push CSV
         run: |
