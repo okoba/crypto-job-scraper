@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 from typing import List, Dict
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # CSV file to store jobs
 CSV_FILE = "remoteok_crypto_jobs.csv"
@@ -61,7 +61,7 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
     
     jobs = []
     seen_ids = set()
-    cutoff_date = datetime.now() - timedelta(days=max_age_days)
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=max_age_days)
     
     for job in jobs_data:
         job_id = job.get("id")
@@ -75,33 +75,43 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
         
         if date_epoch:
             try:
+                # Handle ISO 8601 strings (e.g., '2025-10-31T08:00:36+00:00')
                 if isinstance(date_epoch, str):
+                    # Try parsing as ISO format first
                     try:
                         job_date = datetime.fromisoformat(date_epoch.replace('Z', '+00:00'))
                     except:
+                        # Fall back to integer timestamp
                         date_epoch = int(date_epoch)
                         job_date = datetime.fromtimestamp(date_epoch)
                 else:
+                    # Integer timestamp
                     job_date = datetime.fromtimestamp(date_epoch)
                 
                 date_str = job_date.strftime("%Y-%m-%d")
                 
+                # Skip jobs older than cutoff
                 if job_date < cutoff_date:
                     continue
                     
+                # Convert to epoch for sorting
                 date_epoch = int(job_date.timestamp())
             except Exception as e:
                 print(f"Error parsing date for job {job_id}: {e}")
+                # If we can't parse the date, skip this job to be safe
                 continue
         else:
+            # No date provided, skip to be safe
             continue
         
         job_tags = job.get("tags", [])
         job_tags_lower = [t.lower() for t in job_tags]
         
+        # Also check in position title and company name for keywords
         position = (job.get("position") or "").lower()
         company = (job.get("company") or "").lower()
         
+        # Match if tags OR title/company contains keywords
         tag_match = any(tag.lower() in job_tags_lower for tag in tags)
         text_match = any(tag.lower() in position or tag.lower() in company for tag in tags)
         
@@ -114,7 +124,7 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
                 "company": job.get("company", "Unknown"),
                 "location": job.get("location", "Remote"),
                 "date_posted": date_str,
-                "date_epoch": date_epoch,  
+                "date_epoch": date_epoch,  # Store epoch for sorting
                 "link": f"https://remoteok.com/remote-jobs/{job.get('slug') or job_id}"
             })
     
@@ -124,6 +134,7 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
 def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
     """Save all jobs and return only new ones for notification"""
     
+    # Get existing job IDs
     if os.path.exists(filename):
         df_existing = pd.read_csv(filename)
         existing_ids = set(df_existing["job_id"])
@@ -132,23 +143,29 @@ def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
         existing_ids = set()
         print("No existing CSV file found")
     
+    # Identify new jobs
     new_jobs = [job for job in jobs if job["job_id"] not in existing_ids]
     print(f"Identified {len(new_jobs)} new jobs out of {len(jobs)} total scraped jobs")
     
+    # Save ALL current jobs (not just new ones)
     if jobs:
         df_all = pd.DataFrame(jobs)
         if os.path.exists(filename):
+            # Combine with existing jobs, remove duplicates
             df_existing = pd.read_csv(filename)
             df_combined = pd.concat([df_existing, df_all], ignore_index=True)
             df_combined = df_combined.drop_duplicates(subset=['job_id'], keep='last')
             
+            # Sort by date_epoch if available, otherwise by date_posted
             if 'date_epoch' in df_combined.columns:
                 df_combined = df_combined.sort_values('date_epoch', ascending=False, na_position='last')
+                # Drop date_epoch before saving (we don't need it in CSV)
                 df_combined = df_combined.drop(columns=['date_epoch'])
             
             df_combined.to_csv(filename, index=False)
             print(f"CSV now contains {len(df_combined)} total jobs")
         else:
+            # Drop date_epoch before saving
             df_all = df_all.drop(columns=['date_epoch'])
             df_all.to_csv(filename, index=False)
             print(f"Created new CSV with {len(df_all)} jobs")
@@ -158,14 +175,18 @@ def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
 if __name__ == "__main__":
     print("Starting crypto job scraper...")
     
+    # Fetch jobs from RemoteOK with multiple related tags
+    # Only get jobs from the last 24 hours
     jobs = fetch_remoteok_jobs(
         tags=["crypto", "blockchain", "web3", "bitcoin", "ethereum", "defi", "solidity", "smart contract", "nft", "dao", "crypto engineer", "blockchain engineer"],
         max_age_days=1
     )
     
     if jobs:
+        # Save jobs and get only new ones
         new_jobs = save_jobs(jobs)
         
+        # Send Telegram notifications for new jobs only
         if new_jobs:
             print(f"Sending {len(new_jobs)} Telegram notifications...")
             for job in new_jobs:
