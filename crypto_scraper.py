@@ -68,7 +68,6 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
         if job_id in seen_ids:
             continue
         
-        # Check date (epoch timestamp in seconds)
         date_epoch = job.get("date")
         if date_epoch:
             try:
@@ -92,7 +91,6 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
         if tag_match or text_match:
             seen_ids.add(job_id)
             
-            # Format date nicely
             date_str = "Unknown"
             if date_epoch:
                 try:
@@ -115,7 +113,6 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
 def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
     """Save all jobs and return only new ones for notification"""
     
-    # Get existing job IDs
     if os.path.exists(filename):
         df_existing = pd.read_csv(filename)
         existing_ids = set(df_existing["job_id"])
@@ -124,20 +121,16 @@ def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
         existing_ids = set()
         print("No existing CSV file found")
     
-    # Identify new jobs
     new_jobs = [job for job in jobs if job["job_id"] not in existing_ids]
     print(f"Identified {len(new_jobs)} new jobs out of {len(jobs)} total scraped jobs")
     
-    # Save ALL current jobs (not just new ones)
     if jobs:
         df_all = pd.DataFrame(jobs)
         if os.path.exists(filename):
-            # Combine with existing jobs, remove duplicates
             df_existing = pd.read_csv(filename)
             df_combined = pd.concat([df_existing, df_all], ignore_index=True)
             df_combined = df_combined.drop_duplicates(subset=['job_id'], keep='last')
             
-            # Sort by date_posted (most recent first)
             try:
                 df_combined['date_posted'] = pd.to_datetime(df_combined['date_posted'], errors='coerce')
                 df_combined = df_combined.sort_values('date_posted', ascending=False)
@@ -155,18 +148,14 @@ def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
 if __name__ == "__main__":
     print("Starting crypto job scraper...")
     
-    # Fetch jobs from RemoteOK with multiple related tags
-    # Only get jobs from the last 24 hours
     jobs = fetch_remoteok_jobs(
         tags=["crypto", "blockchain", "web3", "bitcoin", "ethereum", "defi", "solidity", "smart contract", "nft", "dao", "crypto engineer", "blockchain engineer"],
         max_age_days=1
     )
     
     if jobs:
-        # Save jobs and get only new ones
         new_jobs = save_jobs(jobs)
         
-        # Send Telegram notifications for new jobs only
         if new_jobs:
             print(f"Sending {len(new_jobs)} Telegram notifications...")
             for job in new_jobs:
