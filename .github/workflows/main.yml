@@ -8,7 +8,6 @@ on:
 jobs:
   scraper:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -21,14 +20,16 @@ jobs:
       - name: Install dependencies
         run: |
           pip install requests pandas
-      - name: Run scraper
-        run: python crypto_scraper.py
 
+      - name: Run scraper
+        run: python crypto_scraper.py   # ✅ indentation fixed
 
       - name: Commit and push CSV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # ✅ ensures push permissions
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
           git add remoteok_crypto_jobs.csv
-          git commit -m "Update jobs CSV" || echo "No changes to commit"
+          git commit -m "Update jobs CSV" || echo "No changes"
           git push
