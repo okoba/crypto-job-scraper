@@ -1,46 +1,24 @@
 name: Crypto Job Scraper
 on:
   schedule:
-    - cron: '0 * * * *'  
-  workflow_dispatch:      
-permissions:
-  contents: write
+    - cron: "0 */2 * * *"  # Every 6 hours instead of every hour
+  workflow_dispatch:
 jobs:
-  scraper:
+  run-scraper:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
-      
+          python-version: "3.11"
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-      
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-      
-      - name: Run scraper
+          python -m pip install --upgrade pip
+          pip install requests pandas
+      - name: Run crypto scraper
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python crypto_scraper.py
-      
-      - name: Commit and push CSV
-        run: |
-          git add remoteok_crypto_jobs.csv
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update jobs CSV - $(date +'%Y-%m-%d %H:%M')"
-            git pull --rebase origin main || git pull origin main
-            git push
-          fi
