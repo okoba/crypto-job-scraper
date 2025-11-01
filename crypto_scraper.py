@@ -69,34 +69,35 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
             continue
         
         date_epoch = job.get("date")
+        job_date = None
+        date_str = "Unknown"
+        
         if date_epoch:
             try:
+                if isinstance(date_epoch, str):
+                    date_epoch = int(date_epoch)
                 job_date = datetime.fromtimestamp(date_epoch)
+                date_str = job_date.strftime("%Y-%m-%d")
+                
                 if job_date < cutoff_date:
-                    continue  # Skip old jobs
+                    continue
             except Exception as e:
                 print(f"Error parsing date for job {job_id}: {e}")
+                continue
+        else:
+            continue
         
         job_tags = job.get("tags", [])
         job_tags_lower = [t.lower() for t in job_tags]
         
-        # Also check in position title and company name for keywords
         position = (job.get("position") or "").lower()
         company = (job.get("company") or "").lower()
         
-        # Match if tags OR title/company contains keywords
         tag_match = any(tag.lower() in job_tags_lower for tag in tags)
         text_match = any(tag.lower() in position or tag.lower() in company for tag in tags)
         
         if tag_match or text_match:
             seen_ids.add(job_id)
-            
-            date_str = "Unknown"
-            if date_epoch:
-                try:
-                    date_str = datetime.fromtimestamp(date_epoch).strftime("%Y-%m-%d")
-                except:
-                    pass
             
             jobs.append({
                 "job_id": job_id,
@@ -104,6 +105,7 @@ def fetch_remoteok_jobs(tags: List[str] = None, max_age_days: int = 7) -> List[D
                 "company": job.get("company", "Unknown"),
                 "location": job.get("location", "Remote"),
                 "date_posted": date_str,
+                "date_epoch": date_epoch,  
                 "link": f"https://remoteok.com/remote-jobs/{job.get('slug') or job_id}"
             })
     
@@ -131,15 +133,14 @@ def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
             df_combined = pd.concat([df_existing, df_all], ignore_index=True)
             df_combined = df_combined.drop_duplicates(subset=['job_id'], keep='last')
             
-            try:
-                df_combined['date_posted'] = pd.to_datetime(df_combined['date_posted'], errors='coerce')
-                df_combined = df_combined.sort_values('date_posted', ascending=False)
-            except:
-                pass
+            if 'date_epoch' in df_combined.columns:
+                df_combined = df_combined.sort_values('date_epoch', ascending=False, na_position='last')
+                df_combined = df_combined.drop(columns=['date_epoch'])
             
             df_combined.to_csv(filename, index=False)
             print(f"CSV now contains {len(df_combined)} total jobs")
         else:
+            df_all = df_all.drop(columns=['date_epoch'])
             df_all.to_csv(filename, index=False)
             print(f"Created new CSV with {len(df_all)} jobs")
     
