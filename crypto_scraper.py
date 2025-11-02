@@ -23,12 +23,8 @@ LAST_RUN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "last_r
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 
-# Tags to match (lowercase)
-TAGS = [
-    "crypto", "blockchain", "web3", "bitcoin", "ethereum",
-    "defi", "solidity", "smart contract", "nft", "dao",
-    "crypto engineer", "blockchain engineer"
-]
+# Tags to match (lowercase) - Empty list means no filtering by tags
+TAGS = []
 
 REMOTEOK_API = "https://remoteok.com/api"
 
@@ -105,20 +101,16 @@ def match_jobs(jobs: List[Dict], cutoff: datetime) -> List[Dict]:
         if dt <= cutoff:
             continue
 
-        tags_lower = [t.lower() for t in (job.get("tags") or [])]
-        pos = (job.get("position") or "").lower()
-        comp = (job.get("company") or "").lower()
-
-        if any(tag in tags_lower or tag in pos or tag in comp for tag in TAGS):
-            matched.append({
-                "job_id": jid,
-                "title": job.get("position", "No title"),
-                "company": job.get("company", "Unknown"),
-                "location": job.get("location", "Remote"),
-                "date_posted": dt.strftime("%Y-%m-%d %H:%M:%S UTC"),
-                "link": f"https://remoteok.com/remote-jobs/{job.get('slug') or jid}",
-                "epoch": int(dt.timestamp())
-            })
+        # No tag filtering - accept all jobs posted after cutoff
+        matched.append({
+            "job_id": jid,
+            "title": job.get("position", "No title"),
+            "company": job.get("company", "Unknown"),
+            "location": job.get("location", "Remote"),
+            "date_posted": dt.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "link": f"https://remoteok.com/remote-jobs/{job.get('slug') or jid}",
+            "epoch": int(dt.timestamp())
+        })
     print(f"✅ Matched {len(matched)} jobs after filtering with cutoff {cutoff.strftime('%Y-%m-%d %H:%M:%S UTC')}.")
     return matched
 
@@ -197,8 +189,4 @@ def main():
     except:
         pass
 
-    print("✅ Scraper completed successfully.")
-
-
-if __name__ == "__main__":
-    main()
+    print("✅
