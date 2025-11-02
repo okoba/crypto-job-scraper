@@ -30,7 +30,7 @@ REMOTEOK_API = "https://remoteok.com/api"
 
 # Safety check
 if not TELEGRAM_TOKEN or not CHAT_ID:
-    print("❌ TELEGRAM_TOKEN and CHAT_ID must be set.")
+    print("ERROR: TELEGRAM_TOKEN and CHAT_ID must be set.")
     exit(1)
 
 CHAT_ID = int(CHAT_ID)
@@ -48,9 +48,9 @@ def send_telegram_message(message: str):
     try:
         r = requests.post(url, data=payload, timeout=12)
         r.raise_for_status()
-        print("📨 Telegram sent")
+        print("Telegram message sent successfully")
     except Exception as e:
-        print(f"⚠️ Telegram send error: {e}")
+        print(f"WARNING: Telegram send error: {e}")
 
 
 # --- UTILITIES ---
@@ -82,10 +82,10 @@ def fetch_remoteok_jobs() -> List[Dict]:
         r = requests.get(REMOTEOK_API, headers=headers, timeout=15)
         r.raise_for_status()
         data = r.json()[1:]  # skip metadata
-        print(f"🌐 Fetched {len(data)} jobs from RemoteOK API.")
+        print(f"Fetched {len(data)} jobs from RemoteOK API.")
         return data
     except Exception as e:
-        print(f"⚠️ RemoteOK fetch error: {e}")
+        print(f"WARNING: RemoteOK fetch error: {e}")
         return []
 
 
@@ -111,7 +111,7 @@ def match_jobs(jobs: List[Dict], cutoff: datetime) -> List[Dict]:
             "link": f"https://remoteok.com/remote-jobs/{job.get('slug') or jid}",
             "epoch": int(dt.timestamp())
         })
-    print(f"✅ Matched {len(matched)} jobs after filtering with cutoff {cutoff.strftime('%Y-%m-%d %H:%M:%S UTC')}.")
+    print(f"SUCCESS: Matched {len(matched)} jobs after filtering with cutoff {cutoff.strftime('%Y-%m-%d %H:%M:%S UTC')}.")
     return matched
 
 
@@ -144,14 +144,14 @@ def save_jobs(jobs: List[Dict], filename: str = CSV_FILE) -> List[Dict]:
             df_combined = df_combined.drop(columns=["epoch"], errors="ignore")
 
         df_combined.to_csv(filename, index=False)
-        print(f"💾 CSV saved with {len(df_combined)} rows at {filename}.")
+        print(f"CSV saved with {len(df_combined)} rows at {filename}.")
 
     return new_jobs
 
 
 # --- MAIN ---
 def main():
-    print("🚀 Starting Crypto Job Scraper...")
+    print("Starting Crypto Job Scraper...")
     now_utc = datetime.now(timezone.utc)
     print(f"Current UTC: {now_utc.strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -168,19 +168,19 @@ def main():
     print(f"Last run timestamp: {last_run.strftime('%Y-%m-%d %H:%M:%S UTC')}")
     jobs = fetch_remoteok_jobs()
     if not jobs:
-        print("❌ No jobs fetched.")
+        print("ERROR: No jobs fetched.")
         return
 
     matched = match_jobs(jobs, cutoff=last_run)
     new_jobs = save_jobs(matched)
 
     if new_jobs:
-        print(f"📢 Sending {len(new_jobs)} new jobs to Telegram...")
+        print(f"Sending {len(new_jobs)} new jobs to Telegram...")
         for job in new_jobs:
             msg = f"*{job['title']}*\n{job['company']} — {job['location']}\n{job['date_posted']}\n{job['link']}"
             send_telegram_message(msg)
     else:
-        print("ℹ️ No new jobs to notify.")
+        print("INFO: No new jobs to notify.")
 
     # Update last run timestamp
     try:
@@ -189,4 +189,8 @@ def main():
     except:
         pass
 
-    print("✅
+    print("SUCCESS: Scraper completed successfully.")
+
+
+if __name__ == "__main__":
+    main()
